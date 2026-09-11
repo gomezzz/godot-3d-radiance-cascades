@@ -1,0 +1,5 @@
+.godot/
+artifacts/
+__pycache__/
+.venv/
+

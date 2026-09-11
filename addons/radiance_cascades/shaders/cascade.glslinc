@@ -1,0 +1,48 @@
+#version 450
+// COMMON
+layout(local_size_x=64, local_size_y=1, local_size_z=1) in;
+layout(set=0, binding=1, std430) readonly buffer Upper { vec4 upper_values[]; };
+layout(set=0, binding=2, std430) writeonly buffer Output { vec4 values[]; };
+vec4 sample_upper(vec3 position, int direction, int direction_count) {
+    ivec3 grid = pc.upper_grid_objects.xyz;
+    vec3 q = clamp((position - pc.origin_spacing.xyz) / (pc.origin_spacing.w * 2.0)
+                   - 0.5, vec3(0.0), vec3(grid - 1));
+    ivec3 p = ivec3(floor(q));
+    vec3 f = fract(q);
+    vec4 result = vec4(0.0);
+    for (int corner = 0; corner < 8; ++corner) {
+        ivec3 offset = ivec3(corner & 1, (corner >> 1) & 1, (corner >> 2) & 1);
+        vec3 w = mix(1.0 - f, f, vec3(offset));
+        int index = probe_index(min(p + offset, grid - 1), grid);
+        result += upper_values[index * direction_count + direction] * w.x * w.y * w.z;
+    }
+    return result;
+}
+void main() {
+    int level = pc.grid_level.w;
+    ivec2 angular = ivec2(8, 4) << level;
+    int direction_count = angular.x * angular.y;
+    int index = int(gl_GlobalInvocationID.x);
+    ivec3 grid = pc.grid_level.xyz;
+    if (index >= grid.x * grid.y * grid.z * direction_count) return;
+    int probe = index / direction_count, ray = index % direction_count;
+    ivec2 cell = ivec2(ray % angular.x, ray / angular.x);
+    vec3 position = pc.origin_spacing.xyz +
+                    (vec3(decode_probe(probe, grid)) + 0.5) * pc.origin_spacing.w;
+    vec4 result = vec4(0.0);
+    // Merge each fine angular child before averaging to preserve the
+    // correlation between near visibility and far radiance.
+    for (int child = 0; child < 4; ++child) {
+        ivec2 child_cell = cell * 2 + ivec2(child & 1, child >> 1);
+        vec3 direction = direction_at(child_cell, angular * 2);
+        vec4 near_value = trace_interval(position, direction);
+        vec4 far_value = vec4(pc.sky.rgb, 1.0);
+        if (pc.upper_grid_objects.x > 0) {
+            int child_index = child_cell.x + child_cell.y * angular.x * 2;
+            far_value = sample_upper(position, child_index, direction_count * 4);
+        }
+        result += vec4(near_value.rgb + near_value.a * far_value.rgb,
+                       near_value.a * far_value.a) * 0.25;
+    }
+    values[index] = result;
+}

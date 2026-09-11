@@ -1,0 +1,26 @@
+#version 450
+// COMMON
+layout(local_size_x=64, local_size_y=1, local_size_z=1) in;
+layout(set=0, binding=1, std430) readonly buffer Base { vec4 values[]; };
+layout(set=0, binding=2, rgba16f) uniform writeonly image2D output_tex;
+void main() {
+    int index = int(gl_GlobalInvocationID.x);
+    ivec3 grid = pc.base_grid_enabled.xyz;
+    int probes = grid.x * grid.y * grid.z;
+    if (index >= probes * 6) return;
+    int probe = index / 6, face = index % 6;
+    vec3 normal = axis_direction(face), sum = vec3(0.0);
+    float normalization = 0.0;
+    for (int ray = 0; ray < 32; ++ray) {
+        vec3 direction = direction_at(ivec2(ray % 8, ray / 8), ivec2(8, 4));
+        float cosine = max(dot(normal, direction), 0.0);
+        sum += values[probe * 32 + ray].rgb * cosine;
+        normalization += cosine;
+    }
+    // Normalize the finite quadrature so a constant environment reproduces
+    // itself exactly (stored quantity is irradiance / pi).
+    sum /= normalization;
+    ivec2 pixel = atlas_coord(decode_probe(probe, grid), face);
+    vec3 old_value = imageLoad(history_tex, pixel).rgb;
+    imageStore(output_tex, pixel, vec4(mix(old_value, sum, pc.interval_bounce_blend.w), 1.0));
+}
