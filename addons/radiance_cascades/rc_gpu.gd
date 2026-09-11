@@ -21,6 +21,12 @@ var resolve_pipeline: RID
 var resources: Array[RID] = []
 var ready := false
 var failure := ""
+var volume_origin := ORIGIN
+var base_spacing := 0.5
+var mesh_node_count := 0
+var mesh_nodes: RID
+var mesh_triangles: RID
+var linear_sampler: RID
 
 
 static func grid_at(level: int) -> Vector3i:
@@ -36,8 +42,16 @@ static func interval_at(level: int) -> Vector2:
 	return Vector2(0.75 * ((1 << level) - 1), 0.75 * ((1 << (level + 1)) - 1))
 
 
-func initialize(device: RenderingDevice) -> void:
+func initialize(
+	device: RenderingDevice,
+	mesh_bvh: RCMeshBVH = null,
+	origin: Vector3 = ORIGIN,
+	spacing: float = 0.5
+) -> void:
 	rd = device
+	volume_origin = origin
+	base_spacing = spacing
+	assert(spacing > 0.0, "Probe spacing must be positive")
 	if rd == null:
 		failure = "Radiance Cascades requires Forward+ or Mobile with a compute-capable GPU."
 		return
@@ -48,8 +62,23 @@ func initialize(device: RenderingDevice) -> void:
 	cascade_pipeline = _keep(rd.compute_pipeline_create(cascade_shader))
 	resolve_pipeline = _keep(rd.compute_pipeline_create(resolve_shader))
 	scene_buffer = _keep(rd.storage_buffer_create(MAX_OBJECTS * STRIDE))
+	var nodes := PackedByteArray()
+	var triangles := PackedByteArray()
+	if mesh_bvh != null:
+		nodes = mesh_bvh.node_data.to_byte_array()
+		triangles = mesh_bvh.triangle_data.to_byte_array()
+	mesh_node_count = nodes.size() / 48
+	if nodes.is_empty():
+		nodes.resize(48)
+		triangles.resize(80)
+	mesh_nodes = _keep(rd.storage_buffer_create(nodes.size(), nodes))
+	mesh_triangles = _keep(rd.storage_buffer_create(triangles.size(), triangles))
 	output = _texture()
 	history = _texture()
+	var sampler_state := RDSamplerState.new()
+	sampler_state.min_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+	sampler_state.mag_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+	linear_sampler = _keep(rd.sampler_create(sampler_state))
 	for level in LEVELS:
 		var grid := grid_at(level)
 		var rays := 32 * (1 << (2 * level))
@@ -73,6 +102,13 @@ func initialize(device: RenderingDevice) -> void:
 									2, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, buffers[level]
 								),
 								_uniform(3, RenderingDevice.UNIFORM_TYPE_IMAGE, history),
+								_uniform(
+									4, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, mesh_nodes
+								),
+								_uniform(
+									5, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, mesh_triangles
+								),
+								_history_sampler(),
 							],
 							cascade_shader,
 							0
@@ -90,6 +126,9 @@ func initialize(device: RenderingDevice) -> void:
 					_uniform(1, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, buffers[0]),
 					_uniform(2, RenderingDevice.UNIFORM_TYPE_IMAGE, output),
 					_uniform(3, RenderingDevice.UNIFORM_TYPE_IMAGE, history),
+					_uniform(4, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, mesh_nodes),
+					_uniform(5, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, mesh_triangles),
+					_history_sampler(),
 				],
 				resolve_shader,
 				0
@@ -147,6 +186,7 @@ func release() -> void:
 func _compile(filename: String) -> RID:
 	var source := RDShaderSource.new()
 	var common := FileAccess.get_file_as_string(SHADER_ROOT + "common.glslinc")
+	common = common.replace("// MESH", FileAccess.get_file_as_string(SHADER_ROOT + "mesh.glslinc"))
 	source.source_compute = FileAccess.get_file_as_string(SHADER_ROOT + filename).replace(
 		"// COMMON", common
 	)
@@ -179,15 +219,19 @@ func _texture() -> RID:
 func _params(level: int, count: int, bounce: float, blend: float, sky: Color) -> PackedByteArray:
 	var grid := grid_at(level)
 	var upper := grid_at(level + 1) if level + 1 < LEVELS else Vector3i.ZERO
-	var interval := interval_at(level)
+	var interval := interval_at(level) * base_spacing / 0.5
 	var bytes := (
-		PackedFloat32Array([ORIGIN.x, ORIGIN.y, ORIGIN.z, 0.5 * (1 << level)]).to_byte_array()
+		PackedFloat32Array(
+			[volume_origin.x, volume_origin.y, volume_origin.z, base_spacing * (1 << level)]
+		)
+		. to_byte_array()
 	)
 	bytes.append_array(PackedInt32Array([grid.x, grid.y, grid.z, level]).to_byte_array())
 	bytes.append_array(PackedInt32Array([upper.x, upper.y, upper.z, count]).to_byte_array())
 	bytes.append_array(PackedFloat32Array([interval.x, interval.y, bounce, blend]).to_byte_array())
 	bytes.append_array(PackedInt32Array([GRID.x, GRID.y, GRID.z, 1]).to_byte_array())
-	bytes.append_array(PackedFloat32Array([sky.r, sky.g, sky.b, 0.0]).to_byte_array())
+	bytes.append_array(PackedFloat32Array([sky.r, sky.g, sky.b, mesh_node_count]).to_byte_array())
+	bytes.append_array(PackedFloat32Array([base_spacing, base_spacing * 0.6, 0, 0]).to_byte_array())
 	return bytes
 
 
@@ -196,6 +240,15 @@ func _uniform(binding: int, type: int, rid: RID) -> RDUniform:
 	uniform.binding = binding
 	uniform.uniform_type = type
 	uniform.add_id(rid)
+	return uniform
+
+
+func _history_sampler() -> RDUniform:
+	var uniform := RDUniform.new()
+	uniform.binding = 6
+	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+	uniform.add_id(linear_sampler)
+	uniform.add_id(history)
 	return uniform
 
 

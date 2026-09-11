@@ -24,6 +24,7 @@ var sliders: Dictionary[String, HSlider] = {}
 
 
 func _ready() -> void:
+	get_window().content_scale_size = Vector2i(1440, 900)
 	_build_ui()
 	_build_probes()
 	_update_camera()

@@ -65,8 +65,45 @@ func _run() -> void:
 	_check(scene.camera.position.distance_to(original) > 1.0, "Orbit changes camera pose")
 	scene.queue_free()
 	await _frames(5)
+	await _test_hall()
 	print("UI_TESTS: ", failures, " failures")
 	quit(0 if failures == 0 else 1)
+
+
+func _test_hall() -> void:
+	var hall = load("res://scenes/reactor_hall.tscn").instantiate()
+	root.add_child(hall)
+	await hall.cascades.initialized
+	await _frames(5)
+	_check(root.get_texture().get_size() == Vector2(1920, 1080), "Hall renders at native Full HD")
+	await _key(KEY_C)
+	await _key(KEY_SPACE)
+	_check(not hall.cinematic and not hall.motion, "Hall camera and emitter motion toggles work")
+	await _key(KEY_G)
+	var all_off := true
+	for material: ShaderMaterial in hall.cascades.materials:
+		all_off = all_off and material.get_shader_parameter("gi_strength") == 0.0
+	_check(all_off, "Hall GI toggle updates analytic and mesh materials")
+	await _key(KEY_F)
+	await _frames(3)
+	var updates: int = hall.cascades.frame_count
+	await _frames(3)
+	_check(hall.cascades.frame_count == updates, "Hall freeze halts field updates")
+	await _key(KEY_H)
+	_check(not hall.hud.visible, "Hall HUD can be hidden")
+	hall.queue_free()
+	await _frames(5)
+
+
+func _key(code: Key) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.pressed = true
+	Input.parse_input_event(event)
+	await _frames(1)
+	event.pressed = false
+	Input.parse_input_event(event)
+	await _frames(2)
 
 
 func _click(control: Control) -> void:

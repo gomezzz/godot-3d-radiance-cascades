@@ -11,12 +11,14 @@
 ## Next
 
 - [ ] Add independent brute-force reference renders and quantify lighting error.
-- [ ] Add arbitrary-mesh voxelization or BVH traversal.
+- [x] Add arbitrary-mesh BVH traversal, glTF validation, and a Full-HD complex scene.
 - [ ] Improve thin-wall visibility and near-field surface reconstruction.
-- [ ] Add configurable volume/quality presets and GPU timestamp profiling.
+- [x] Add configurable volume origin/spacing and geometry detail presets.
+- [ ] Add isolated GPU timestamp profiling.
 
 ## Someday
 
-- [ ] Sparse or scrolling probe volumes, dynamic object registration, and dirty updates.
+- [x] Add explicit geometry recollection/rebuild and original material restoration.
+- [ ] Sparse or scrolling probe volumes and incremental dirty updates.
 - [ ] Specular transport and additional directional parameterizations.
 - [ ] Validate exports and additional GPU/platform combinations.

@@ -37,7 +37,7 @@ void main() {
         vec3 direction = direction_at(child_cell, angular * 2);
         vec4 near_value = trace_interval(position, direction);
         vec4 far_value = vec4(pc.sky.rgb, 1.0);
-        if (pc.upper_grid_objects.x > 0) {
+        if (near_value.a > 0.0 && pc.upper_grid_objects.x > 0) {
             int child_index = child_cell.x + child_cell.y * angular.x * 2;
             far_value = sample_upper(position, child_index, direction_count * 4);
         }

@@ -1,0 +1,13 @@
+#version 450
+// COMMON
+layout(local_size_x=64) in;
+layout(set=0, binding=1, std430) readonly buffer Queries { vec4 rays[]; };
+layout(set=0, binding=2, std430) writeonly buffer Results { vec4 results[]; };
+void main() {
+    int index = int(gl_GlobalInvocationID.x);
+    if (index >= pc.base_grid_enabled.w) return;
+    float closest = rays[index * 2].w;
+    vec3 normal = vec3(0.0);
+    int hit = trace_mesh(rays[index * 2].xyz, rays[index * 2 + 1].xyz, closest, normal);
+    results[index] = vec4(closest, float(hit), 0.0, 0.0);
+}

@@ -1,0 +1,55 @@
+struct BVHNode { vec4 lower; vec4 upper; vec4 links; };
+struct Triangle { vec4 a; vec4 b; vec4 c; vec4 albedo; vec4 emission; };
+layout(set=0, binding=4, std430) readonly buffer MeshNodes { BVHNode mesh_nodes[]; };
+layout(set=0, binding=5, std430) readonly buffer MeshTriangles { Triangle mesh_triangles[]; };
+
+bool box_hit(vec3 ro, vec3 rd, vec3 low, vec3 high, float limit) {
+    float near_t = 0.0, far_t = limit;
+    for (int axis = 0; axis < 3; ++axis) {
+        if (abs(rd[axis]) < 1e-8) {
+            if (ro[axis] < low[axis] || ro[axis] > high[axis]) return false;
+        } else {
+            float a = (low[axis] - ro[axis]) / rd[axis];
+            float b = (high[axis] - ro[axis]) / rd[axis];
+            near_t = max(near_t, min(a,b));
+            far_t = min(far_t, max(a,b));
+        }
+    }
+    return near_t <= far_t;
+}
+bool triangle_hit(Triangle tri, vec3 ro, vec3 rd, float limit,
+                  out float distance, out vec3 normal) {
+    vec3 e1 = tri.b.xyz - tri.a.xyz, e2 = tri.c.xyz - tri.a.xyz;
+    vec3 h = cross(rd, e2);
+    float determinant = dot(e1, h);
+    if (abs(determinant) < 1e-8) return false;
+    vec3 s = ro - tri.a.xyz;
+    float u = dot(s, h) / determinant;
+    vec3 q = cross(s, e1);
+    float v = dot(rd, q) / determinant;
+    distance = dot(e2, q) / determinant;
+    if (u < 0.0 || v < 0.0 || u+v > 1.0 || distance < 0.0001 || distance >= limit)
+        return false;
+    normal = normalize(cross(e1, e2));
+    if (dot(normal, rd) > 0.0) normal = -normal;
+    return true;
+}
+int trace_mesh(vec3 ro, vec3 rd, inout float closest, inout vec3 normal) {
+    int hit = -1, node = 0;
+    while (node < int(pc.sky.w)) {
+        BVHNode entry = mesh_nodes[node];
+        if (!box_hit(ro, rd, entry.lower.xyz, entry.upper.xyz, closest)) {
+            node = int(entry.links.z);
+            continue;
+        }
+        int first = int(entry.links.x), count = int(entry.links.y);
+        for (int i = first; i < first + count; ++i) {
+            float distance; vec3 n;
+            if (triangle_hit(mesh_triangles[i], ro, rd, closest, distance, n)) {
+                closest = distance; normal = n; hit = i;
+            }
+        }
+        node++;
+    }
+    return hit;
+}

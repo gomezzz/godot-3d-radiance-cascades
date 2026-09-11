@@ -1,64 +1,104 @@
-# Radiance Cascades / Light Laboratory
+# HELIOS — 3D Radiance Cascades for Godot
 
-A runnable **3D world-space radiance cascades prototype for Godot**, implemented in GDScript and Vulkan compute shaders. The scene is lit by emissive geometry and an optional environment term. There are no Godot lights, baked lightmaps, SDFGI, or screen-space GI.
+A GPU global-illumination experiment with **arbitrary triangle mesh support** and a dramatic **1920 × 1080 reactor hall**. Five world-space radiance cascades light the scene from emissive geometry, with diffuse bounce feedback, moving emitters, and a cinematic camera.
 
-Open `project.godot` in **Godot 4.7** and press **F5**. Forward+ and a compute-capable GPU are required for the tested configuration. Godot 4.6 should expose the APIs used here, but has not been validated. Compatibility/WebGL is unsupported.
+![HELIOS reactor hall rendered at 1920 × 1080](docs/images/helios.png)
 
-## Explore
+**Yes, this uses GPU shaders.** Vulkan compute shaders trace rays through a triangle BVH, merge cascades, and resolve diffuse lighting. Godot spatial shaders sample the result. The CPU builds the static BVH and uploads moving analytic objects; it does not calculate the lighting. No hardware ray-tracing extension, native module, Blender installation, or baked lightmap is required.
 
-- Right mouse drag: orbit. Wheel: zoom. R: reset camera. Space: animate/pause the cyan emitter. Escape: quit.
-- Adjust emitter power, diffuse bounce feedback, and occluder position in the sidebar.
-- Freeze the field to inspect the last solution. Camera movement does not invalidate it: the probes live in world space.
-- Switch between lit surfaces, irradiance, and albedo; show the interior portion of the finest probe grid.
-- Turn radiance lighting off to see emissive surfaces alone. This toggle affects surface shading; it deliberately leaves the solver running for comparisons.
+## Run
 
-The scene is authored in `scenes/laboratory.tscn`, including geometry, radiance, albedo, camera, and environment. The organization, inspectable controls, capture workflow, and format/lint/test gate take inspiration from `C:\Code\godot\godot-starter`. The unrelated game, audio, and narrative systems are not dependencies.
+Open `project.godot` in **Godot 4.7**, select **Forward+**, and press **F5**. The default scene is HELIOS at native Full HD with 2× MSAA. The original small laboratory is retained at `scenes/laboratory.tscn`.
 
-## What is implemented
-
-Five volumetric probe grids store RGB radiance and scalar transmittance. Probe spacing doubles at each level while directional samples quadruple. Adjacent distance intervals are traced analytically against transformed boxes and spheres. Coarse results are trilinearly sampled and merged into finer intervals with `L = L_near + T_near * L_far` and `T = T_near * T_far`.
-
-Each angular parent averages four children **after** visibility/radiance merging. A resolve pass integrates the finest level into six directional diffuse lobes. Godot spatial materials sample that atlas with trilinear spatial interpolation and an ambient-cube normal reconstruction. A previous-frame atlas supplies optional diffuse bounce feedback and temporal smoothing. All production compute resources stay on the GPU through `Texture2DRD`; readback is used only by tests and captures.
-
-See [architecture and references](docs/implementation.md) for the layout, approximation choices, and extension points.
-
-## Reuse in a Godot scene
-
-1. Copy `addons/radiance_cascades/` into a Forward+ project and let Godot import the scripts. This is a runtime module; no editor plugin needs enabling.
-2. Attach `rc_primitive.gd` to MeshInstance3D nodes using **BoxMesh** or spherical **SphereMesh** resources. Set `albedo` and `radiance`; radiance is linear HDR RGB. Transforms can translate, rotate, and scale, including nonuniformly scaled spheres.
-3. Add a Node with `radiance_cascades.gd`. Assign its `geometry_root` to the parent containing those primitives. Its material overrides implement the diffuse RC shading.
-4. Keep the scene in the current probe volume: origin `(-6, 0, -6)`, extent `(12, 8, 12)`, finest spacing `0.5`. Primitive registration happens at startup; runtime transform, mesh, and color changes are uploaded every update. Recreate the controller after adding/removing nodes. Hide/show is not currently an exclusion mechanism for the tracer.
-5. When exporting, include `*.glslinc` in the export preset's **non-resource file filter**. These text sources are compiled at runtime, intentionally bypassing Godot's standalone GLSL importer.
-
-This does **not** automatically illuminate ordinary StandardMaterial3D objects or voxelize imported meshes. It replaces materials on registered RCPrimitive nodes. Save any materials you want to restore before attaching the controller. Only one controller should own a given geometry root.
-
-## Validation
-
-On this Windows workspace:
+On Windows:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/check_changes.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Mode capture
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Scene lab
 ```
 
-Pass `-GodotBin C:\path\to\godot.exe` to either tool for another installation. The local test gate requires Python with `gdtoolkit` (`python -m pip install gdtoolkit`). It checks formatting, lint, import, numerical GPU integration, and live input/UI behavior. Temporary editor profiles, test logs, and captures go to ignored `artifacts/`.
+Pass `-GodotBin C:\path\to\godot.exe` for another installation. On other platforms, use `godot --path .` with a compute-capable Vulkan renderer. Compatibility/WebGL is unsupported. Only the Windows/NVIDIA configuration below has been tested.
 
-For other platforms, run the equivalent commands from the project root:
+## The scene
+
+HELIOS contains **535 structural assemblies and 72,012 static triangles**, batched into six material surfaces. Curved ribs, toroidal reactor cages, cooling pipes, machinery banks, galleries, railings, and stairs all participate in GPU ray traversal. Three orbiting emissive spheres provide dynamic illumination. The scene is generated deterministically by `scripts/reactor_geometry.gd`; it is actual mesh geometry, not a screen-space backdrop.
+
+| Control | Action |
+| --- | --- |
+| RMB drag | Look around; stop the camera tour |
+| Hold RMB + WASD / Q / E | Fly forward, sideways, down, and up |
+| Wheel | Change orbit-camera distance |
+| C | Toggle cinematic camera |
+| Space | Pause/resume emitter motion |
+| G | Toggle the GI contribution on surfaces |
+| 1 / 2 / 3 | Lit materials / irradiance / albedo |
+| F | Freeze/resume the radiance field |
+| H | Hide/show the HUD |
+| R | Reset camera |
+| Escape | Quit |
+
+Camera movement does not invalidate the lighting field. G changes surface shading while the solver continues running; F stops solver updates.
+
+## Measured performance
+
+Godot **4.7.stable**, Vulkan, **RTX 4060 Ti**, Windows, native **1920 × 1080**, 2× MSAA, moving camera/emitters, GI updated every frame:
+
+| Scene | Triangles | Average FPS | Median frame | 95th-percentile frame |
+| --- | ---: | ---: | ---: | ---: |
+| HELIOS, default high detail | 72,012 | **161.3** | 6.24 ms | 7.69 ms |
+
+Measured over 1,200 frames after 120 warm-up frames. VSync remained enabled on a 165 Hz display, so this is substantially display-capped, **not an uncapped GPU throughput benchmark**. The CPU BVH build took about 1.22 seconds once at startup. These results do not predict other GPUs or arbitrary scenes.
+
+The earlier median-split BVH reached approximately 52 FPS at this detail level. Binned surface-area splitting greatly reduces overlap from the hall's long floors and rails. GPU ray results were checked against independent CPU triangle intersections after the optimization. See [verification details](docs/validation.md).
+
+Why the approach helps here: radiance is traced into a bounded world-space field and reused across screen pixels. Adding emissive surfaces does not create a separate shadow map or a full lighting pass per light. A BVH skips groups of triangles, while mesh batching reduces draw calls. This does not make tracing cost independent of scene complexity.
+
+## Use your own meshes
+
+1. Copy `addons/radiance_cascades/` into a Forward+ project.
+2. Put your static MeshInstance3D nodes beneath a common Node3D. Imported glTF/GLB ArrayMesh resources and indexed/non-indexed triangle surfaces are supported, including multiple surfaces and transformed instances.
+3. Add a Node with `radiance_cascades.gd`, and assign its `geometry_root`. No editor-plugin activation is needed.
+4. Set `volume_origin` and `probe_spacing` **before the controller enters the tree**. The grid is 24 × 16 × 24; extent is grid × spacing. HELIOS uses origin `(-12,0,-12)`, spacing `1`, extent `(24,16,24)`.
+5. Use BaseMaterial3D surface albedo and emission factors. The controller installs RC shader materials and restores original overrides when removed. A glTF import/export round trip is covered by tests.
+6. After changing static mesh geometry, transforms, or topology, call `rebuild_geometry()`. It rebuilds the CPU BVH, recreates GPU resources, and resets lighting history. Wait for `initialized` before relying on the new field. This explicit operation can stall; it is not intended for per-frame deformation.
+7. For inexpensive moving boxes/spheres, attach `rc_primitive.gd` and use its `albedo` / linear-HDR `radiance` properties. Up to 64 analytic objects update without rebuilding the static triangle BVH.
+
+**Material scope:** per-surface constant albedo and emission factors. Texture maps, normal maps, alpha masks, skinning, blend shapes, and custom source shaders are not implemented in transport. Mesh triangles are opaque and traced from both sides. Do not treat this as a drop-in implementation of every StandardMaterial3D feature.
+
+The controller owns material overrides while installed. Keep mesh geometry within the volume; lighting outside it clamps to boundary probes. Include `*.glslinc` in the export preset's **non-resource file filter** because these shader sources are loaded as text and compiled at runtime. Executable export has not been validated.
+
+## Architecture
 
 ```text
-gdformat --check addons/radiance_cascades scripts tests
-gdlint addons/radiance_cascades scripts tests
-godot --headless --editor --import --quit
-godot --rendering-method forward_plus --rendering-driver vulkan --script tests/test_gpu.gd
-godot --rendering-method forward_plus --rendering-driver vulkan --script tests/test_demo.gd
-godot --rendering-method forward_plus --rendering-driver vulkan -- --capture=res://artifacts/laboratory.png
+Static triangle meshes ── CPU surface-area BVH build ── GPU geometry buffers
+Dynamic analytic objects ────────────────────────────────┘
+                                                          │
+                     cascade 4 → 3 → 2 → 1 → 0  (GPU)
+                                                          │
+Previous irradiance ── diffuse feedback ── six-lobe resolve
+                                                          │
+                                  Texture2DRD → spatial shaders
 ```
 
-GPU tests must use a real rendering device; `--headless` is for import only. See [verification results](docs/validation.md). Linux/macOS, other GPU vendors, and exported executables are not yet tested.
+The production path performs no lighting readback and no CPU ray tracing. The atlas uses hardware bilinear filtering within each slice plus explicit interpolation between slices, reducing a diffuse gather from 48 point fetches to six filtered fetches. [Implementation notes](docs/implementation.md) document interval layout, memory, BVH format, and approximations.
 
-## Current limits
+## Tests and captures
 
-This is a bounded research/demo implementation, not a replacement for Godot's general-purpose GI renderer. It uses at most 64 analytic primitives and has no acceleration structure. Fixed probe spacing, finite direction bins, a 0.3-unit surface bias, and ambient-cube reconstruction can blur contact shadows and leak light across thin geometry. Very small emitters can be missed. Temporal feedback can lag moving geometry. Specular reflections, transparency, mesh voxelization, adaptive/sparse grids, and multivolume streaming are future work.
+Requires Python with `gdtoolkit` for the formatting/lint gate:
 
-The starting reference is [Alexander Sannikov's Radiance Cascades paper](https://github.com/Raikiri/RadianceCascadesPaper); [tmpvar's 3D grid experiment](https://github.com/tmpvar/radiance-cascades-3d-grid) provides a useful independent world-space implementation reference. This project is an original implementation of the concepts, not a port of either repository.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/check_changes.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Mode capture -Frames 1200
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Mode capture -LowDetail
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Mode capture -NoGI
+```
+
+The gate covers formatting, lint, import, **22 numerical GPU checks**, **21 mesh/integration checks**, **14 live scene/input checks**, and a Full-HD hall capture. The mesh suite compares 512 small-scene rays and 64 full-hall rays against independent CPU intersections, checks BVH coverage, imports glTF, and verifies material restoration and explicit geometry rebuilding.
+
+Generated captures, logs, and benchmark JSON go to ignored `artifacts/`. Use `-CapturePath` and `-BenchmarkPath` to keep multiple results. `-UpdateEvery 2` deliberately reduces GI update frequency; the published result uses **1**. GPU tests require a real rendering device; `--headless` is only used for import.
+
+## Limitations and references
+
+This remains a research implementation. The fixed grid, finite direction bins, ambient-cube reconstruction, and normal bias can soften contact shadows or leak light through thin structures. Small emitters can be missed. Temporal feedback can lag moving geometry. There is no specular transport, sparse streaming, skeletal animation, or hardware ray-tracing backend.
+
+The starting reference is [Alexander Sannikov's Radiance Cascades manuscript](https://github.com/Raikiri/RadianceCascadesPaper). [tmpvar's 3D grid experiment](https://github.com/tmpvar/radiance-cascades-3d-grid) informed the world-space layout; [PBRT's BVH chapter](https://www.pbr-book.org/4ed/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies) informed the acceleration strategy. This is an original implementation, not a source-code port. Project organization and validation take inspiration from `godot-starter`.
