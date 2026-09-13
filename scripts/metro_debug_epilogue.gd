@@ -182,7 +182,7 @@ func _build_thanks() -> void:
 	_credit(
 		(
 			"Research: Alexander Sannikov   /   Engine: Godot contributors\n"
-			+ "Announcements: VoiceForge + Qwen3-TTS   /   Footsteps: InspectorJ, CC BY 4.0 (edited)"
+			+ "Footsteps: InspectorJ, CC BY 4.0 (edited)"
 		),
 		820,
 		24

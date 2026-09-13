@@ -30,7 +30,7 @@ Godot is a separate MIT-licensed engine; engine binaries are not included here.
 When distributing an executable built with it, retain the engine and bundled
 third-party licence notices required by that build.
 
-VoiceForge and Qwen3-TTS were used locally to generate fictional announcements;
+Archived, unused voice files: VoiceForge and Qwen3-TTS were used locally to generate fictional announcements;
 their source and model weights are not distributed in this repository. The
 Qwen3-TTS model's Apache-2.0 licence is not a licence claim over the recordings.
 Generation settings and provenance are in the audio attribution file.

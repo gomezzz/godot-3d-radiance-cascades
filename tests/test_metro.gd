@@ -428,11 +428,12 @@ func _detail_checks(scene: Node3D) -> void:
 		"Downloaded seven-second transformer hum loops"
 	)
 	scene.soundscape.tick(0.0, true, false)
-	scene.soundscape.tick(7.5, true, false)
+	for moment in [7.5, 31.1, 55.1, 103.5, 0.0, 7.5]:
+		scene.soundscape.tick(moment, true, false)
 	await _frames(2)
 	_check(
-		scene.soundscape.voice.playing and scene.soundscape.voice.stream.get_length() > 6.0,
-		"VoiceForge station-closure announcement triggers"
+		scene.soundscape.get_child_count() == 3 and AudioServer.get_bus_index("NorthlinePA") == -1,
+		"No speech player or PA bus exists across announcement times and replay"
 	)
 	scene.soundscape.tick(20.4, true, false)
 	await _frames(2)
@@ -444,7 +445,7 @@ func _detail_checks(scene: Node3D) -> void:
 	_check(
 		(
 			scene.soundscape.hum.stream_paused
-			and scene.soundscape.voice.volume_db == -80.0
+			and scene.soundscape.machinery.volume_db == -80.0
 			and scene.soundscape.bang.volume_db == -80.0
 		),
 		"Pause and mute cover the whole soundscape"

@@ -389,7 +389,7 @@ func _update_audio() -> void:
 		clampf(camera.global_position.z, train.visual.position.z - 57.0, train.visual.position.z)
 	)
 	train_audio.stream_paused = not motion
-	train_audio.volume_db = -80.0 if audio_muted else (-2.0 if soundscape.voice.playing else 2.0)
+	train_audio.volume_db = -80.0 if audio_muted else 2.0
 
 
 func _benchmark_name() -> String:

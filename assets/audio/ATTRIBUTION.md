@@ -52,7 +52,11 @@ approximately -24.0/-8.8 dBFS; the bang source measures -26.6/-7.8 dBFS before
 its -15 dB positional playback gain. This avoids an inaudibly quiet raw loop
 without raising the mix to jump-scare volume.
 
-## Fictional public-address voice
+## Archived public-address voice (unused)
+
+These historical recordings are **not loaded or played by the current scene**.
+The following provenance applies only to the retained files, not the current
+soundtrack or closing-screen credits.
 
 Three original announcement texts were regenerated locally using the user's **VoiceForge**, Qwen3-TTS 1.7B CustomVoice, the female **Serena** preset and explicit monotonous, evenly paced, detached delivery instructions. This replaces the previous Ryan voice. No real person's voice was cloned. Source cast and script: `assets/voice_source/`; reproduction: `tools/metro_voice.ps1 -Mode generate`. Model weights are Apache-2.0; see [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS).
 

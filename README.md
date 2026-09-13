@@ -257,7 +257,7 @@ Wayfinding boards are one-third smaller, with only two paired ceiling assemblies
 
 The unlit gutter steam plumes have been removed; the textured drains remain. Four weathered graffiti styles are blended into selected wall and pillar tiles, retaining their normal maps and lighting without adding decal geometry. [Graffiti artwork and generation provenance](assets/textures/graffiti/README.md).
 
-The CC0 transformer hum is joined by a **40-second muffled metallic ambience** composed from the credited metal recording; occasional separate bangs come from the tunnels. **VoiceForge regenerated all three announcements with the female Serena preset and flat monotone instructions**, retaining the sinister "violations will be persecuted." PA filtering and reverb remain. **M mutes all audio**, P pauses it, and C/R restart the announcement timeline. Train and ambience duck beneath speech. Strict VoiceForge QA passed; final voice delivery and speaker mix still need human audition. [Audio provenance](assets/audio/ATTRIBUTION.md).
+The CC0 transformer hum is joined by a **40-second muffled metallic ambience** composed from the credited metal recording; occasional separate bangs come from the tunnels. **Spoken announcements are disabled:** the scene does not load speech assets or create a speech player. **M mutes all audio**, P pauses it, and C/R restart the soundscape timeline. Train and ambience retain their non-ducked levels. [Audio provenance](assets/audio/ATTRIBUTION.md).
 
 A small **burning barrel** in the rear platform corner uses scanned worn metal, glowing coals, procedural GPU flame shaders, GPU embers and a flickering RC light source. Everything runs offline after asset installation.
 
@@ -507,10 +507,9 @@ Start with a low speaker/headphone volume. Numeric levels and playback state are
 tested; final perceived loudness depends on the listener's hardware and has not
 been human-auditioned here.
 
-Announcements are original fictional text rendered locally with **VoiceForge /
-Qwen3-TTS 1.7B CustomVoice**, female **Serena** preset; no real person's voice was
-cloned. [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) model weights are Apache-2.0.
-The source scripts and generation settings are in `assets/voice_source/`.
+Spoken announcements are not used by the current scene. Historical source files
+remain archived in the repository; their provenance is recorded separately in
+the audio attribution file, not presented as a credit for the current soundtrack.
 
 **Footsteps:** `footstep.wav` derives from **[Footsteps, Concrete, A.wav](https://freesound.org/people/InspectorJ/sounds/336598/)**
 by **InspectorJ ([www.jshaw.co.uk](https://www.jshaw.co.uk/))** of Freesound.org,

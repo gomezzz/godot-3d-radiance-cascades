@@ -193,6 +193,9 @@ func _run() -> void:
 	assert(not event.proxy.visible and event.proxy.radiance == Color.BLACK)
 	event.tick(1, station)
 	assert(event.epilogue.thanks.modulate.a == 1)
+	for credit in event.epilogue.thanks.get_children():
+		if credit is Label:
+			assert("Qwen" not in credit.text and "VoiceForge" not in credit.text)
 	assert(event.epilogue.repo_link.text == "github.com/gomezzz/godot-3d-radiance-cascades")
 	for frame in 8:
 		await process_frame
