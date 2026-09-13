@@ -25,6 +25,8 @@ var sliders: Dictionary[String, HSlider] = {}
 
 func _ready() -> void:
 	get_window().content_scale_size = Vector2i(1440, 900)
+	# The launcher already owns fullscreen; avoid recreating the Vulkan swapchain
+	# while this scene's RenderingDevice resources are being initialized.
 	_build_ui()
 	_build_probes()
 	_update_camera()
@@ -86,7 +88,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			distance = 17.0
 			_update_camera()
 		if event.keycode == KEY_ESCAPE:
-			get_tree().quit()
+			get_tree().change_scene_to_file("res://scenes/scene_picker.tscn")
 
 
 func _update_camera() -> void:

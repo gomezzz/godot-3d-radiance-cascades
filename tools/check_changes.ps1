@@ -2,16 +2,16 @@ param([string]$GodotBin = "")
 $ErrorActionPreference = "Stop"
 $env:LOCALAPPDATA = Join-Path $PSScriptRoot "..\artifacts"
 New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA | Out-Null
-python -m gdtoolkit.formatter --check addons/radiance_cascades scripts tests
+python -m gdtoolkit.formatter --check addons/radiance_cascades scripts tests tools/ad_movie
 if ($LASTEXITCODE -ne 0) { throw "Formatting check failed" }
-python -m gdtoolkit.linter addons/radiance_cascades scripts tests
+python -m gdtoolkit.linter addons/radiance_cascades scripts tests tools/ad_movie
 if ($LASTEXITCODE -ne 0) { throw "Lint failed" }
-foreach ($mode in @("import", "test", "mesh-test", "ui-test", "capture")) {
+foreach ($mode in @("import", "test", "mesh-test", "ui-test", "metro-test", "examples-test", "picker-test", "lightning-test", "capture")) {
     $commandArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
         (Join-Path $PSScriptRoot "run.ps1"), "-Mode", $mode)
     if ($GodotBin) { $commandArgs += @("-GodotBin", $GodotBin) }
     if ($mode -eq "capture") {
-        $commandArgs += @("-Frames", "180", "-CapturePath", "res://artifacts/check-hall.png")
+        $commandArgs += @("-Scene", "hall", "-Frames", "180", "-CapturePath", "res://artifacts/check-hall.png")
     }
     $ErrorActionPreference = "Continue"
     $output = & powershell @commandArgs 2>&1
@@ -28,7 +28,7 @@ foreach ($mode in @("import", "test", "mesh-test", "ui-test", "capture")) {
         $_.Line -notmatch "^ERROR: Failed to read the root certificate store\.$"
     }
     if ($unexpected) { throw "$mode emitted errors; see $logPath" }
-    if ($mode -eq "test" -and -not ($output -match "GPU_TESTS: 22 checks, 0 failures")) {
+    if ($mode -eq "test" -and -not ($output -match "GPU_TESTS: 44 checks, 0 failures")) {
         throw "GPU test completion marker missing"
     }
     if ($mode -eq "ui-test" -and -not ($output -match "UI_TESTS: 0 failures")) {
@@ -37,8 +37,20 @@ foreach ($mode in @("import", "test", "mesh-test", "ui-test", "capture")) {
     if ($mode -eq "mesh-test" -and -not ($output -match "MESH_TESTS: 21 checks, 0 failures")) {
         throw "Mesh test completion marker missing"
     }
+    if ($mode -eq "metro-test" -and -not ($output -match "METRO_TESTS: 72 checks, 0 failures")) {
+        throw "Metro test completion marker missing"
+    }
     if ($mode -eq "capture" -and -not ($output -match "HALL_BENCHMARK")) {
         throw "Full-HD hall did not finish rendering"
+    }
+    if ($mode -eq "examples-test" -and -not ($output -match "EXAMPLE_TESTS: 0 failures")) {
+        throw "Example test completion marker missing"
+    }
+    if ($mode -eq "picker-test" -and -not ($output -match "PICKER_LAB_OK")) {
+        throw "Picker launch completion marker missing"
+    }
+    if ($mode -eq "lightning-test" -and -not ($output -match "LIGHTNING_TESTS_OK")) {
+        throw "Lightning event completion marker missing"
     }
 }
 Write-Host "=== SUCCESS ==="

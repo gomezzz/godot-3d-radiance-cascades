@@ -1,0 +1,29 @@
+#version 450
+layout(local_size_x=8, local_size_y=8, local_size_z=1) in;
+layout(set=0,binding=0,std430) readonly buffer C0 { vec4 c0[]; };
+layout(set=0,binding=1,std430) readonly buffer C1 { vec4 c1[]; };
+layout(set=0,binding=2,std430) readonly buffer C2 { vec4 c2[]; };
+layout(set=0,binding=3,std430) readonly buffer C3 { vec4 c3[]; };
+layout(set=0,binding=4,std430) readonly buffer C4 { vec4 c4[]; };
+layout(set=0,binding=5,rgba16f) uniform writeonly image2D atlas;
+layout(push_constant,std430) uniform Params { vec4 origin_spacing; vec4 inspect; } pc;
+void main() {
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    if (pixel.x >= 256 || pixel.y >= 640) return;
+    int level = pixel.y / 128;
+    int divisor = 1 << level;
+    ivec3 grid = (ivec3(24,16,24) + divisor - 1) / divisor;
+    ivec3 probe = clamp(ivec3(floor((pc.inspect.xyz-pc.origin_spacing.xyz)
+        / (pc.origin_spacing.w*float(divisor)))), ivec3(0), grid-1);
+    ivec2 angular = ivec2(8,4) << level;
+    ivec2 cell = ivec2(pixel.x*angular.x/256, (pixel.y%128)*angular.y/128);
+    int index = (probe.x+grid.x*(probe.y+grid.y*probe.z))*angular.x*angular.y
+        +cell.x+cell.y*angular.x;
+    vec4 value;
+    if (level == 0) value=c0[index];
+    else if (level == 1) value=c1[index];
+    else if (level == 2) value=c2[index];
+    else if (level == 3) value=c3[index];
+    else value=c4[index];
+    imageStore(atlas,pixel,value);
+}

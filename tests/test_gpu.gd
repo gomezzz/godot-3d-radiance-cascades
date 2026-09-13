@@ -29,6 +29,15 @@ func _run() -> void:
 	_test_emitter_and_occlusion()
 	_test_transforms()
 	_test_bounce()
+	_test_point_source()
+	_test_debug_atlas()
+	# Exercise the visibility-aware reference path against the same invariants.
+	gpu.visibility_merge = true
+	_test_empty_space()
+	_test_opaque_scene()
+	_test_emitter_and_occlusion()
+	_test_transforms()
+	_test_bounce()
 	gpu.release()
 	device.free()
 	print("GPU_TESTS: %d checks, %d failures" % [checks, failures])
@@ -155,6 +164,61 @@ func _test_bounce() -> void:
 	_check(_energy(bounced) < _energy(direct) * 3.0, "Diffuse feedback remains bounded")
 	for object in objects:
 		object.free()
+
+
+func _test_debug_atlas() -> void:
+	_dispatch([], 0.0, Color(.25, .5, 1.0))
+	gpu.update_debug(Vector3(0, 2, 0))
+	device.submit()
+	device.sync()
+	var atlas := Image.create_from_data(
+		256, 640, false, Image.FORMAT_RGBAH, device.texture_get_data(gpu.debug_output, 0)
+	)
+	var valid := true
+	for level in 5:
+		var pixel := atlas.get_pixel(128, level * 128 + 64)
+		valid = valid and absf(pixel.r - .25) < .002 and absf(pixel.b - 1) < .002 and pixel.a == 1
+	_check(valid, "Debug atlas reads real radiance/transmittance from all five cascade buffers")
+	_dispatch([], 0.0, Color.BLACK)
+	gpu.update_debug(Vector3(0, 2, 0))
+	device.submit()
+	device.sync()
+	atlas = Image.create_from_data(
+		256, 640, false, Image.FORMAT_RGBAH, device.texture_get_data(gpu.debug_output, 0)
+	)
+	_check(_energy(atlas) < .00001, "Debug atlas updates when traced lighting changes")
+
+
+func _test_point_source() -> void:
+	var source := _box(Vector3(0, 3, 0), Vector3.ONE, Color(8, 8, 8))
+	var bulb := SphereMesh.new()
+	bulb.radius = 0.07
+	bulb.height = 0.14
+	source.mesh = bulb
+	source.point_source = true
+	var floor_box := _box(Vector3(0, -0.2, 0), Vector3(10, 0.4, 10), Color.BLACK)
+	floor_box.albedo = Color.WHITE
+	_dispatch([], 0.0, Color.BLACK)
+	var direct := _dispatch([source, floor_box], 0.0, Color.BLACK)
+	_check(_energy(direct) < 0.00001, "Delta source does not masquerade as finite-area RC direct")
+	var bounced := _dispatch([source, floor_box], 0.65, Color.BLACK)
+	var energy := _energy(bounced)
+	_check(energy > 0.1, "Explicit point sampling injects visible RC indirect lighting")
+	var blocker := _box(Vector3(0, 1.5, 0), Vector3(12, 0.2, 12), Color.BLACK)
+	blocker.albedo = Color.BLACK
+	_dispatch([], 0.0, Color.BLACK)
+	var blocked := _dispatch([source, floor_box, blocker], 0.65, Color.BLACK)
+	_check(_energy(blocked) < energy * 0.01, "Point-to-surface GPU visibility rejects blockers")
+	_dispatch([], 0.0, Color.BLACK)
+	source.radiance *= 2.0
+	var doubled := _dispatch([source, floor_box], 0.65, Color.BLACK)
+	_check(
+		absf(_energy(doubled) / energy - 2.0) < 0.02,
+		"Point indirect scales linearly with intensity"
+	)
+	source.free()
+	floor_box.free()
+	blocker.free()
 
 
 func _dispatch(objects: Array[RCPrimitive], bounce: float, sky: Color) -> Image:

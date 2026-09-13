@@ -1,0 +1,9 @@
+{
+  "name": "Northline public address",
+  "seed_base": 213,
+  "characters": [{
+    "id": "authority", "mode": "preset", "description": "", "speaker": "Serena",
+    "language": "English", "reference_text": "Attention. This station is out of operation.",
+    "seed": 0, "note": "Female preset identity. Monotonous automated public address, not a real person."
+  }]
+}

@@ -6,3 +6,10 @@ export_templates/
 feature_profiles/
 script_templates/
 text_editor_themes/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx

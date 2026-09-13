@@ -6,6 +6,7 @@ var satellites: Array[RCPrimitive] = []
 var time := 0.0
 var cinematic := true
 var motion := true
+var allow_free_flight := true
 var gi_enabled := true
 var orbit := Vector2(0.4, 0.15)
 var distance := 22.0
@@ -24,7 +25,10 @@ var _finished := false
 
 
 func _ready() -> void:
-	get_window().content_scale_size = Vector2i(1920, 1080)
+	get_window().content_scale_size = Vector2i(2560, 1440)
+	get_window().mode = Window.MODE_WINDOWED
+	get_window().current_screen = DisplayServer.get_primary_screen()
+	get_window().mode = Window.MODE_FULLSCREEN
 	_parse_args()
 	var geometry := Node3D.new()
 	geometry.name = "Geometry"
@@ -103,7 +107,7 @@ func _process(delta: float) -> void:
 	if cinematic:
 		orbit = Vector2(0.4 + sin(time * 0.08) * 0.22, 0.15 + sin(time * 0.12) * 0.04)
 		_update_camera()
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+	if allow_free_flight and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		var direction := Vector3(
 			(
 				float(Input.is_physical_key_pressed(KEY_D))
@@ -195,6 +199,7 @@ func _update_camera() -> void:
 
 func _build_hud() -> void:
 	hud = CanvasLayer.new()
+	hud.scale = Vector2.ONE * (4.0 / 3.0)
 	add_child(hud)
 	_label("H E L I O S", Vector2(44, 28), 38, Color.WHITE)
 	_label(
@@ -255,8 +260,17 @@ func _finish_capture() -> void:
 		"gi_updates": cascades.frame_count,
 		"cinematic": cinematic,
 	}
+	stats.merge(_benchmark_details())
 	if not benchmark_path.is_empty():
 		var file := FileAccess.open(benchmark_path, FileAccess.WRITE)
 		file.store_string(JSON.stringify(stats, "\t"))
-	print("HALL_BENCHMARK ", JSON.stringify(stats))
+	print(_benchmark_name(), " ", JSON.stringify(stats))
 	get_tree().quit()
+
+
+func _benchmark_name() -> String:
+	return "HALL_BENCHMARK"
+
+
+func _benchmark_details() -> Dictionary:
+	return {}

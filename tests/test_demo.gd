@@ -75,7 +75,7 @@ func _test_hall() -> void:
 	root.add_child(hall)
 	await hall.cascades.initialized
 	await _frames(5)
-	_check(root.get_texture().get_size() == Vector2(1920, 1080), "Hall renders at native Full HD")
+	_check(root.get_texture().get_size() == Vector2(2560, 1440), "Hall renders at native QHD")
 	await _key(KEY_C)
 	await _key(KEY_SPACE)
 	_check(not hall.cinematic and not hall.motion, "Hall camera and emitter motion toggles work")
@@ -107,20 +107,19 @@ func _key(code: Key) -> void:
 
 
 func _click(control: Control) -> void:
-	var center := control.get_global_rect().get_center()
-	var position := root.get_final_transform() * center
+	# Route one atomic pointer gesture through the real viewport GUI, in local
+	# coordinates. OS cursor motion between frames must not steal synthetic clicks.
+	var position := control.get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new()
 	motion.position = position
-	Input.parse_input_event(motion)
-	await _frames(1)
+	root.push_input(motion, true)
 	var event := InputEventMouseButton.new()
 	event.button_index = MOUSE_BUTTON_LEFT
 	event.position = position
 	event.pressed = true
-	Input.parse_input_event(event)
-	await _frames(1)
+	root.push_input(event, true)
 	event.pressed = false
-	Input.parse_input_event(event)
+	root.push_input(event, true)
 	await _frames(2)
 
 

@@ -1,5 +1,102 @@
 # Implementation notes
 
+## Point-source reference and transport check (2026-09-13)
+
+The occlusion study now separates native point direct illumination from RC indirect.
+`RCPrimitive.point_source` tags emission.w; the existing 112-byte object layout is
+unchanged. Sphere shape.y carries the light range. CPU packing locates at most one
+point source and places its index in unused push-constant volume_params.z (-1 when
+absent). Other scenes do not perform point visibility rays.
+
+The GPU does not intersect this display sphere as geometry. Instead, at diffuse
+hits it traces visibility toward the source and evaluates cosine / distance squared
+with a smooth fourth-power range fade. This direct incident term plus history is
+multiplied by surface albedo and bounce_feedback. Only reflected radiance enters
+the cascades, avoiding double-counted direct illumination. The matching native
+OmniLight3D supplies the visible direct term and cube shadows. This single-light
+extension is not general many-light importance sampling or paper-exact transport.
+
+The original unshaded example did not use shadow maps. Coarse probes (0.5 m),
+finite angular sampling, six-lobe normal reconstruction and visibility-unaware
+surface gathering can produce blockiness, leaks and moving-source shimmer.
+More wall polygons or a larger shadow atlas cannot fix those RC approximations.
+Tests verify interval adjacency, radiance/transmittance invariants, occlusion,
+transformed geometry, bounded feedback and the new point-light injection.
+They do not establish equivalence to a path-traced ground truth.
+
+The PBR shader's native diffuse branch previously multiplied by ALBEDO twice:
+once explicitly and once in Godot's final diffuse composition. The explicit factor
+is removed, consistent with Godot's custom light-function contract. RC emission
+still multiplies by albedo once. Concrete normal/roughness maps now expose fine
+surface detail in the point study without baking that detail into transport.
+
+The following sections retain historical revision details; current metro controls,
+dimensions, audio and asset credits are described in the root README.
+
+## Horror revision: reflections, relief, displays, intro and audio
+
+The metro's normal scale is now 1.15 instead of 0.6. Matching displacement maps
+drive up to twelve parallax depth steps in tangent space, before albedo/normal/
+roughness lookup. This adds apparent relief, not silhouette displacement or
+textured ray-hit transport. All twelve maps have explicit mip chains.
+
+`MetroAtmosphere` shares two 768 x 432 SubViewports across seven irregular puddle
+quads and three coplanar wall mirrors. Cameras reflect the eye, forward and up
+vectors across y=0.035 or x=-9.64; projector matrices map world positions into
+the reflection textures. Reflection meshes occupy layer 2 and reflection cameras
+render only layer 1, avoiding recursive feedback. The PBR shader clips the enclosing
+wall/floor only for these reflection-camera masks. Water adds small ripple UV
+offsets, an irregular edge and grazing-angle reflectance. There is no refraction,
+multi-bounce mirror recursion or reflected-camera player body.
+
+Signs now render text to one-shot 2D viewport textures. Their shader adds scanlines,
+pixel modulation, low-level noise and a slow rolling dim band. This is independent
+of the GI solver and uses the scene clock so pausing also freezes the screen effect.
+
+The train moves at 24 m/s on a twelve-second timeline. An edited CC0 field recording
+is played by AudioStreamPlayer3D near the train centre, with distance attenuation
+and Doppler tracking. It begins during approach; M mutes and Space pauses it.
+Playback is stopped several frames before explicit shutdown so the mixer can
+release its stream reference. See `assets/audio/ATTRIBUTION.md` for source/edit details.
+
+The ten-second intro advances seventeen metres, turns toward the passing train,
+then releases cinematic ownership and captures mouse input for WASD/QE flight.
+Enter skips; C/R replay. Tests exercise automatic handoff and actual W-key movement
+without requiring RMB. The expanded metro suite contains 32 checks.
+
+## NORTHLINE PBR surfaces and moving train
+
+The original unshaded surface shader remains the default for the lab and HELIOS.
+`pbr_surfaces` opts into `pbr_surface.gdshader` and `RCPBRMaterial.configure()`.
+Albedo is sampled as sRGB; normal, roughness and metal maps are linear data.
+UV1 scale/offset and roughness/metal channel masks are retained. Tangent-space
+normals are transformed into view space for GGX highlights and world space for
+the six-lobe diffuse lookup. Position bias uses the geometric normal, avoiding
+normal-map details pushing samples into geometry. Metallic surfaces suppress
+diffuse response. Lamp `light()` evaluates specular only: RC already contains
+direct emitter diffuse transport. SSR is a screen-space approximation, not RC
+specular transport; there is no environment radiance cubemap in this scene.
+
+The metro batches metre-projected box UVs into eight surfaces and generates
+tangents before committing the mesh. Nine 2048-pixel texture maps have explicit
+mip chains and VRAM compression. The original downloads and license/artist
+credits are kept under `assets/textures/`.
+
+The train's three visible box hulls and six invisible emissive window-strip
+proxies live under the traced geometry root. Detailed moving meshes live under
+the disjoint `visual_geometry_root`: they receive RC materials but never enter
+the static BVH. Both roots share the same animated translation. This deliberately
+approximates transport through doors, windows, wheels and rounded roof details;
+it is not deforming triangle traversal. Twelve analytic ceiling emitters and
+their corresponding specular lamps use the same localized flicker intensity.
+Text and sign faces are raster-only; transparency and texture-resolved bounce
+colors remain outside the transport model.
+
+The inherited capture harness includes native render size, GPU, static geometry,
+GI update count, and frame-time statistics; metro adds proxy count, pillar count,
+train position and material/flicker flags. The metro suite actually
+renders with each texture channel disabled in turn and compares viewport pixels.
+
 ## Mesh support and HELIOS (current implementation)
 
 The runtime now accepts ordinary MeshInstance3D triangle geometry, including imported ArrayMesh resources and triangle-producing PrimitiveMesh resources. Indexed and non-indexed surfaces are expanded into world-space triangles. Translation, rotation, and nonuniform scaling are baked into the snapshot. Per-surface constant albedo is converted to linear space; emission factors are retained as linear radiance. The tracer handles triangles as opaque, two-sided surfaces. Skinning, blend shapes, and texture maps are outside the implemented transport model.

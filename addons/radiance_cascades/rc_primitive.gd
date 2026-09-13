@@ -6,6 +6,9 @@ extends MeshInstance3D
 
 @export var albedo := Color(0.7, 0.7, 0.7)
 @export var radiance := Color.BLACK
+## Delta light: radiance is RGB intensity, not finite-surface emission.
+@export var point_source := false
+@export var point_range := 14.0
 
 
 func pack() -> PackedFloat32Array:
@@ -21,8 +24,11 @@ func pack() -> PackedFloat32Array:
 		data.append_array([size.x, size.y, size.z, 0.0])
 	else:
 		assert(is_equal_approx(mesh.height, mesh.radius * 2.0), "RC SphereMesh must be spherical")
-		data.append_array([mesh.radius, 0.0, 0.0, 1.0])
+		data.append_array([mesh.radius, point_range if point_source else 0.0, 0.0, 1.0])
 	var linear := albedo.srgb_to_linear()
 	data.append_array([linear.r, linear.g, linear.b, 0.0])
-	data.append_array([radiance.r, radiance.g, radiance.b, 0.0])
+	assert(
+		not point_source or mesh is SphereMesh, "Point source requires spherical display geometry"
+	)
+	data.append_array([radiance.r, radiance.g, radiance.b, float(point_source)])
 	return data

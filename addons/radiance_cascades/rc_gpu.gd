@@ -27,6 +27,11 @@ var mesh_node_count := 0
 var mesh_nodes: RID
 var mesh_triangles: RID
 var linear_sampler: RID
+var visibility_merge := false
+var point_index := -1
+var debug_output: RID
+var debug_pipeline: RID
+var debug_set: RID
 
 
 static func grid_at(level: int) -> Vector3i:
@@ -143,6 +148,11 @@ func dispatch(
 ) -> void:
 	assert(ready, failure)
 	assert(object_count <= MAX_OBJECTS and scene.size() == object_count * STRIDE)
+	point_index = -1
+	for index in object_count:
+		if scene.decode_float(index * STRIDE + 108) > 0.5:
+			assert(point_index == -1, "Only one explicit point source is supported")
+			point_index = index
 	if not scene.is_empty():
 		rd.buffer_update(scene_buffer, 0, scene.size(), scene)
 	var list := rd.compute_list_begin()
@@ -183,6 +193,43 @@ func release() -> void:
 	ready = false
 
 
+func update_debug(position: Vector3) -> void:
+	# Lazy allocation: no extra atlas or dispatch in ordinary gameplay.
+	if not debug_output.is_valid():
+		var shader := _compile("debug.glslinc")
+		assert(shader.is_valid(), failure)
+		debug_pipeline = _keep(rd.compute_pipeline_create(shader))
+		debug_output = _texture(256, 640)
+		var uniforms: Array[RDUniform] = []
+		for level in LEVELS:
+			uniforms.append(
+				_uniform(level, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, buffers[level])
+			)
+		uniforms.append(_uniform(5, RenderingDevice.UNIFORM_TYPE_IMAGE, debug_output))
+		debug_set = _keep(rd.uniform_set_create(uniforms, shader, 0))
+	var params := (
+		PackedFloat32Array(
+			[
+				volume_origin.x,
+				volume_origin.y,
+				volume_origin.z,
+				base_spacing,
+				position.x,
+				position.y,
+				position.z,
+				0.0
+			]
+		)
+		. to_byte_array()
+	)
+	var list := rd.compute_list_begin()
+	rd.compute_list_bind_compute_pipeline(list, debug_pipeline)
+	rd.compute_list_bind_uniform_set(list, debug_set, 0)
+	rd.compute_list_set_push_constant(list, params, params.size())
+	rd.compute_list_dispatch(list, 32, 80, 1)
+	rd.compute_list_end()
+
+
 func _compile(filename: String) -> RID:
 	var source := RDShaderSource.new()
 	var common := FileAccess.get_file_as_string(SHADER_ROOT + "common.glslinc")
@@ -199,10 +246,10 @@ func _compile(filename: String) -> RID:
 	return _keep(rd.shader_create_from_spirv(spirv))
 
 
-func _texture() -> RID:
+func _texture(width: int = GRID.x * 6, height: int = GRID.y * GRID.z) -> RID:
 	var format := RDTextureFormat.new()
-	format.width = GRID.x * 6
-	format.height = GRID.y * GRID.z
+	format.width = width
+	format.height = height
 	format.format = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
 	format.usage_bits = (
 		RenderingDevice.TEXTURE_USAGE_STORAGE_BIT
@@ -229,9 +276,13 @@ func _params(level: int, count: int, bounce: float, blend: float, sky: Color) ->
 	bytes.append_array(PackedInt32Array([grid.x, grid.y, grid.z, level]).to_byte_array())
 	bytes.append_array(PackedInt32Array([upper.x, upper.y, upper.z, count]).to_byte_array())
 	bytes.append_array(PackedFloat32Array([interval.x, interval.y, bounce, blend]).to_byte_array())
-	bytes.append_array(PackedInt32Array([GRID.x, GRID.y, GRID.z, 1]).to_byte_array())
+	bytes.append_array(
+		PackedInt32Array([GRID.x, GRID.y, GRID.z, int(visibility_merge)]).to_byte_array()
+	)
 	bytes.append_array(PackedFloat32Array([sky.r, sky.g, sky.b, mesh_node_count]).to_byte_array())
-	bytes.append_array(PackedFloat32Array([base_spacing, base_spacing * 0.6, 0, 0]).to_byte_array())
+	bytes.append_array(
+		PackedFloat32Array([base_spacing, base_spacing * 0.6, point_index, 0]).to_byte_array()
+	)
 	return bytes
 
 

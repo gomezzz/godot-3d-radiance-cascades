@@ -1,0 +1,8 @@
+{
+  "name": "Northline closure protocol", "seed_base": 213,
+  "lines": [
+    {"id": "station_closed", "character": "authority", "text": "Attention. Northline station is out of operation. You are kindly requested to vacate the station.", "language": "English", "instruct": "A female automated station announcer. Speak in a flat monotone with minimal pitch variation, evenly spaced words, precise consonants and a steady measured pace. Emotionless, detached, no warmth, no dramatic emphasis, no whispering.", "note": "First announcement during the camera approach."},
+    {"id": "station_violation", "character": "authority", "text": "Your continued presence has been recorded. Any violations will be persecuted. Thank you for your cooperation.", "language": "English", "instruct": "A female automated station announcer. Speak in a flat monotone with minimal pitch variation, evenly spaced words, precise consonants and a steady measured pace. Emotionless, detached, no warmth, no dramatic emphasis, no whispering.", "note": "Persecuted is intentional horror copy, as requested."},
+    {"id": "station_final", "character": "authority", "text": "This is your final courtesy reminder. Follow the illuminated exit signs. Do not board the passing service. Kindly vacate the station.", "language": "English", "instruct": "A female automated station announcer. Speak in a flat monotone with minimal pitch variation, evenly spaced words, precise consonants and a steady measured pace. Emotionless, detached, no warmth, no dramatic emphasis, no whispering.", "note": "Repeat cycle is spaced to avoid overlapping train passes."}
+  ], "extra": {}
+}

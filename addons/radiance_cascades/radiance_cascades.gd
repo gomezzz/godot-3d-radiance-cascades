@@ -8,10 +8,14 @@ signal failed(message: String)
 const SURFACE_SHADER := preload("res://addons/radiance_cascades/shaders/surface.gdshader")
 
 @export var geometry_root: Node3D
+@export var pbr_surfaces := false
+## Raster-only detail represented by analytic proxies in geometry_root.
+@export var visual_geometry_root: Node3D
 @export_range(0.0, 1.0) var bounce_feedback := 0.65
 @export_range(0.01, 1.0) var temporal_blend := 0.3
 @export var sky_radiance := Color(0.015, 0.02, 0.03)
 @export var paused := false
+@export var visibility_merge := false
 @export var volume_origin := RCGPU.ORIGIN
 @export_range(0.1, 4.0) var probe_spacing := 0.5
 @export_range(1, 8) var update_every_frames := 1
@@ -24,6 +28,9 @@ var is_ready := false
 var frame_count := 0
 var mesh_instances: Array[MeshInstance3D] = []
 var mesh_bvh := RCMeshBVH.new()
+var debug_enabled := false
+var debug_position := Vector3.ZERO
+var debug_texture := Texture2DRD.new()
 var _pending := false
 var _tick := 0
 var _original_overrides: Dictionary[MeshInstance3D, Material] = {}
@@ -37,6 +44,8 @@ func _ready() -> void:
 	mesh_bvh.build(mesh_instances)
 	for instance in mesh_instances:
 		_apply_mesh_materials(instance)
+	if visual_geometry_root != null:
+		_collect_visual(visual_geometry_root)
 	RenderingServer.call_on_render_thread(_initialize_gpu)
 
 
@@ -58,7 +67,13 @@ func _process(_delta: float) -> void:
 	_pending = true
 	RenderingServer.call_on_render_thread(
 		_render.bind(
-			packed.to_byte_array(), primitives.size(), bounce_feedback, temporal_blend, sky_radiance
+			packed.to_byte_array(),
+			primitives.size(),
+			bounce_feedback,
+			temporal_blend,
+			sky_radiance,
+			debug_enabled,
+			debug_position
 		)
 	)
 
@@ -83,21 +98,20 @@ func rebuild_geometry() -> void:
 	mesh_bvh.build(mesh_instances)
 	for instance in mesh_instances:
 		_apply_mesh_materials(instance)
+	if visual_geometry_root != null:
+		_collect_visual(visual_geometry_root)
 	RenderingServer.call_on_render_thread(_reinitialize_gpu)
 
 
 func _collect(node: Node) -> void:
 	if node is MeshInstance3D and node.mesh != null:
-		var instance := node as MeshInstance3D
-		_original_overrides[instance] = node.material_override
-		var surfaces: Array[Material] = []
-		for surface in node.mesh.get_surface_count():
-			surfaces.append(node.get_surface_override_material(surface))
-		_original_surfaces[instance] = surfaces
+		_remember_materials(node)
 	if node is RCPrimitive and (node.mesh is BoxMesh or node.mesh is SphereMesh):
 		primitives.append(node)
 		var material := ShaderMaterial.new()
 		material.shader = SURFACE_SHADER
+		if pbr_surfaces:
+			RCPBRMaterial.configure(material, node.get_active_material(0))
 		material.set_shader_parameter("irradiance_tex", texture)
 		material.set_shader_parameter("volume_origin", volume_origin)
 		material.set_shader_parameter("probe_spacing", probe_spacing)
@@ -109,11 +123,30 @@ func _collect(node: Node) -> void:
 		_collect(child)
 
 
+func _remember_materials(instance: MeshInstance3D) -> void:
+	assert(not _original_overrides.has(instance), "RC geometry roots must not overlap")
+	_original_overrides[instance] = instance.material_override
+	var surfaces: Array[Material] = []
+	for surface in instance.mesh.get_surface_count():
+		surfaces.append(instance.get_surface_override_material(surface))
+	_original_surfaces[instance] = surfaces
+
+
+func _collect_visual(node: Node) -> void:
+	if node is MeshInstance3D and node.mesh != null:
+		_remember_materials(node)
+		_apply_mesh_materials(node)
+	for child in node.get_children():
+		_collect_visual(child)
+
+
 func _apply_mesh_materials(instance: MeshInstance3D) -> void:
 	for surface in instance.mesh.get_surface_count():
 		var palette := RCMeshBVH.colors(instance, surface)
 		var material := ShaderMaterial.new()
 		material.shader = SURFACE_SHADER
+		if pbr_surfaces:
+			RCPBRMaterial.configure(material, instance.get_active_material(surface))
 		material.set_shader_parameter("irradiance_tex", texture)
 		material.set_shader_parameter("volume_origin", volume_origin)
 		material.set_shader_parameter("probe_spacing", probe_spacing)
@@ -127,6 +160,7 @@ func _apply_mesh_materials(instance: MeshInstance3D) -> void:
 
 
 func _initialize_gpu() -> void:
+	gpu.visibility_merge = visibility_merge
 	gpu.initialize(RenderingServer.get_rendering_device(), mesh_bvh, volume_origin, probe_spacing)
 	if not gpu.ready:
 		_report_failure.call_deferred(gpu.failure)
@@ -145,8 +179,20 @@ func _report_failure(message: String) -> void:
 	failed.emit(message)
 
 
-func _render(data: PackedByteArray, count: int, bounce: float, blend: float, sky: Color) -> void:
+func _render(
+	data: PackedByteArray,
+	count: int,
+	bounce: float,
+	blend: float,
+	sky: Color,
+	debug: bool,
+	inspect: Vector3
+) -> void:
 	gpu.dispatch(data, count, bounce, blend, sky)
+	if debug:
+		gpu.update_debug(inspect)
+		if debug_texture.texture_rd_rid != gpu.debug_output:
+			debug_texture.texture_rd_rid = gpu.debug_output
 	_finish_frame.call_deferred()
 
 
@@ -180,5 +226,6 @@ func _reinitialize_gpu() -> void:
 
 
 func _release_gpu() -> void:
+	debug_texture.texture_rd_rid = RID()
 	texture.texture_rd_rid = RID()
 	gpu.release()

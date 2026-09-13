@@ -1,0 +1,38 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/metro_station.gd" id="1"]
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 1
+background_color = Color(0.0004, 0.0008, 0.0012, 1)
+ambient_light_source = 3
+reflected_light_source = 2
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.35
+ssao_enabled = true
+ssao_radius = 0.6
+ssao_intensity = 1.3
+ssr_enabled = false
+fog_enabled = true
+fog_light_color = Color(0.025, 0.045, 0.055, 1)
+fog_light_energy = 0.1
+fog_density = 0.025
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.0
+volumetric_fog_length = 40.0
+volumetric_fog_detail_spread = 0.6
+volumetric_fog_temporal_reprojection_enabled = false
+volumetric_fog_temporal_reprojection_amount = 0.95
+
+[node name="Northline" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
+fov = 72.0
+near = 0.07
+far = 120.0
