@@ -15,6 +15,15 @@ func _run() -> void:
 	await scene.cascades.initialized
 	assert(Input.mouse_mode == Input.MOUSE_MODE_HIDDEN, "Metro intro hides the pointer")
 	await _frames(90)
+	assert(not scene.hud.visible and scene.shortcut_hint.visible, "Only shortcut hint on entry")
+	await _key(KEY_F1)
+	assert(scene.hud.visible, "F1 reveals metro title and shortcuts")
+	await _key(KEY_F1)
+	assert(not scene.hud.visible and scene.shortcut_hint.visible, "F1 hides overlays again")
+	root.get_texture().get_image().save_png("res://artifacts/metro-hud-hidden.png")
+	await _key(KEY_F1)
+	root.get_texture().get_image().save_png("res://artifacts/metro-hud-shortcuts.png")
+	await _key(KEY_F1)
 	_check(
 		(
 			root.get_texture().get_size() == Vector2(2560, 1440)

@@ -165,11 +165,13 @@ func _build_thanks() -> void:
 		26
 	)
 	_credit("Recordings used / Freesound", 675, 28)
-	_credit("craigsmith  /  videog  /  FOSSarts  /  SamsterBirdies  /  kev_durr", 725, 26)
+	_credit(
+		"craigsmith  /  videog  /  FOSSarts  /  SamsterBirdies  /  kev_durr  /  InspectorJ", 725, 26
+	)
 	_credit(
 		(
 			"Research: Alexander Sannikov   /   Engine: Godot contributors\n"
-			+ "Announcements: VoiceForge + Qwen3-TTS   /   Footsteps: user-supplied Orion recording"
+			+ "Announcements: VoiceForge + Qwen3-TTS   /   Footsteps: InspectorJ, CC BY 4.0 (edited)"
 		),
 		820,
 		24

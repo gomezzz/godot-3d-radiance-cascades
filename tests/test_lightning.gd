@@ -134,6 +134,8 @@ func _run() -> void:
 	for frame in 8:
 		await physics_frame
 	assert(event.contact, "Godot collision detects the train")
+	event.tick(0, station)
+	assert(not station.shortcut_hint.visible, "Shortcut hint disappears for final fade and debug")
 	var key := InputEventKey.new()
 	key.pressed = true
 	key.keycode = KEY_P

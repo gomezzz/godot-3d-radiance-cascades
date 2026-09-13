@@ -23,6 +23,7 @@ var focus_material := ShaderMaterial.new()
 var cutscene := true
 var audio_muted := false
 var last_cycle := -1
+var shortcut_hint := CanvasLayer.new()
 var _quitting := false
 var _previous_auto_quit := true
 
@@ -240,6 +241,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	):
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode in [KEY_F1, KEY_H]:
+			hud.visible = not hud.visible
+			return
 		if event.keycode in [KEY_F, KEY_B]:
 			if event.keycode == KEY_F:
 				flashlight.visible = not flashlight.visible
@@ -420,6 +424,12 @@ func _build_hud() -> void:
 	hud = CanvasLayer.new()
 	hud.scale = Vector2.ONE * (4.0 / 3.0)
 	add_child(hud)
+	hud.visible = false
+	shortcut_hint.scale = hud.scale
+	add_child(shortcut_hint)
+	var hint := _label("F1: shortcuts", Vector2(1760, 1030), 15, Color("b0c0c1"))
+	hint.reparent(shortcut_hint)
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label("N O R T H L I N E", Vector2(42, 28), 30, Color("759087"))
 	_label("M2 / NO SERVICE / 02:13", Vector2(44, 76), 15, Color("668578"))
 	status = _label("Building station lighting...", Vector2(44, 950), 16, Color("c8d5d6"))

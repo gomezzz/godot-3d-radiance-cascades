@@ -13,10 +13,12 @@ This grant does not relicense third-party material or grant rights not held.
 - The Freesound recordings by craigsmith, videog, FOSSarts, SamsterBirdies and
   kev_durr retain **CC0 1.0**. Sources and derivative processing are in
   [audio attribution](assets/audio/ATTRIBUTION.md).
-- **`assets/audio/footstep.wav` has unresolved redistribution rights.** It comes
-  from the user-supplied Orion recording; its original author/licence is not
-  established. It is excluded from the MIT grant. Obtain permission or replace
-  it before distributing a public copy containing this asset.
+- `assets/audio/footstep.wav` derives from **[Footsteps, Concrete, A.wav](https://freesound.org/people/InspectorJ/sounds/336598/)**
+  by **InspectorJ ([www.jshaw.co.uk](https://www.jshaw.co.uk/))**, under
+  **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**, not MIT or CC0.
+  The user identified the supplied Orion recording as this source, possibly sped
+  up. This project excerpts, fades, gain-adjusts, limits and varies playback pitch.
+  Preserve this attribution, source and licence links, and modification notice.
 
 Keep these attribution files when redistributing the assets. Licences are
 independent of the software licence. A credit is acknowledgement of reused work,

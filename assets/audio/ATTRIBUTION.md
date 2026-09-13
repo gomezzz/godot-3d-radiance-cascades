@@ -72,6 +72,11 @@ machinery behind the walls. It is not a newly downloaded recording or music trac
 `tools/import_orion_footsteps.ps1` extracts 0.42–0.78 seconds, applies short fades,
 gain and limiting, and writes mono 44.1 kHz WAV. Playback alternates pitch and
 follows actual grounded travel distance, with a landing step. The original
-recording's author and redistribution license are not established; this asset
-must not be represented as CC0. The source file is unchanged.
+recording was identified by the user as **[Footsteps, Concrete, A.wav](https://freesound.org/people/InspectorJ/sounds/336598/)**
+by **InspectorJ ([www.jshaw.co.uk](https://www.jshaw.co.uk/))** of Freesound.org,
+licensed **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**.
+The supplied MP3 may already have been sped up (user report; not verified).
+The extraction, fades, gain, limiting and runtime pitch variation are adaptations.
+Retain this attribution and modification notice; this asset is not CC0 or MIT.
+The supplied source file is unchanged.
 `tools/build_metro_foley.ps1` reproduces only the metallic ambience using FFmpeg.

@@ -220,6 +220,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Mode capture 
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Mode metro-test
 ```
 
+The metro title, statistics and controls are hidden by default: only a small
+**F1: shortcuts** hint appears. **F1** toggles those overlays (H remains an alias).
+The hint disappears at the final fade; the debug epilogue keeps its explanatory UI.
+
 The **72-check metro suite** covers PBR/parallax pixel differences, texture mip chains, moving proxy uploads, unchanged static BVH, lamp behavior, QHD reflections, real video playback, flashlight illumination and focus transition, visible wall and pillar graffiti, drone patrol/beacon and sign clearance, textured metal grates, train interior contents, escape signs, audio timing/pause/mute, fire animation, locked-off intro shots, walking collision, footsteps, jumping/landing, **native QHD fullscreen**, and material restoration. Performance records are in [validation](docs/validation.md).
 
 ### Screens, soundscape and fire
@@ -442,8 +446,8 @@ The starting reference is [Alexander Sannikov's Radiance Cascades manuscript](ht
 Original code, shaders, scene definitions, tools and documentation are available
 under the permissive [MIT licence](LICENSE). Asset exceptions and the scope of
 the grant are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-Poly Haven and Freesound assets retain CC0; the user-supplied footstep recording
-has unresolved redistribution permission and is **not** covered by MIT.
+Poly Haven and the Freesound recordings listed in the CC0 table retain CC0;
+InspectorJ's footstep recording retains **CC BY 4.0**, not MIT (details below).
 Credit acknowledges reuse of independently created work, not collaboration or
 endorsement by its creators. Do not assume the entire asset bundle is cleared
 for redistribution solely because the code is MIT licensed.
@@ -487,10 +491,13 @@ Qwen3-TTS 1.7B CustomVoice**, female **Serena** preset; no real person's voice w
 cloned. [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) model weights are Apache-2.0.
 The source scripts and generation settings are in `assets/voice_source/`.
 
-**Footstep licence is unresolved:** `footstep.wav` derives from the user-supplied
-Orion `footsteps.mp3`; its original author and redistribution permission have not
-been established. Confirm permission or replace it before public distribution.
-It is not covered by the CC0 statements above.
+**Footsteps:** `footstep.wav` derives from **[Footsteps, Concrete, A.wav](https://freesound.org/people/InspectorJ/sounds/336598/)**
+by **InspectorJ ([www.jshaw.co.uk](https://www.jshaw.co.uk/))** of Freesound.org,
+under **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**, not CC0 or MIT.
+The user identified the supplied Orion `footsteps.mp3` as this source, possibly
+already sped up. This project excerpts, fades, gain-adjusts, limits and varies
+playback pitch. Preserve attribution, licence/source links and this modification
+notice when redistributing it.
 
 The two [parody advertising movies](assets/video/README.md) are original procedural
 films made for this project, not downloaded footage. The [graffiti atlas](assets/textures/graffiti/README.md)

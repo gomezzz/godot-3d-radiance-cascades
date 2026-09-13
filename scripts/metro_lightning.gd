@@ -153,6 +153,7 @@ func tick(delta: float, station: Node3D) -> void:
 		overlay.color.a = smoothstep(0.0, FADE_TIME, collision_age)
 		station.walker.walking_enabled = false
 		station.hud.visible = false
+		station.shortcut_hint.visible = false
 		if collision_age >= FADE_TIME + BLACK_HOLD:
 			if epilogue == null:
 				_power_station(station, 1.0)
