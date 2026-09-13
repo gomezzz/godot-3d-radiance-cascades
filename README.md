@@ -2,7 +2,7 @@
 
 A GPU global-illumination experiment with arbitrary triangle mesh support and two **2560 × 1440 fullscreen** showcases: the NORTHLINE metro station and the HELIOS reactor hall. Five world-space radiance cascades light the scenes from emissive geometry, with diffuse bounce feedback and moving emitters.
 
-![NORTHLINE horror metro rendered at 1920 × 1080](docs/images/northline-horror.png)
+![Current NORTHLINE metro: lightning, puddle reflections and PBR surfaces at 2560 × 1440](docs/images/northline-current.png)
 
 **Yes, this uses GPU shaders.** Vulkan compute shaders trace rays through a triangle BVH, merge cascades, and resolve diffuse lighting. Godot spatial shaders sample the result. The CPU builds the static BVH and uploads moving analytic objects; it does not calculate the lighting. No hardware ray-tracing extension, native module, Blender installation, or baked lightmap is required.
 
@@ -223,6 +223,27 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -Mode metro-te
 The metro title, statistics and controls are hidden by default: only a small
 **F1: shortcuts** hint appears. **F1** toggles those overlays (H remains an alias).
 The hint disappears at the final fade; the debug epilogue keeps its explanatory UI.
+
+**O toggles the metro's cinematic post FX**, enabled by default (also available
+as `postfx_enabled` on the station root in the Inspector). This switches the
+existing 0.35 glow, a restrained 16% edge vignette, camera-rotation motion blur,
+and the opening focus pull. There is no constant full-screen softening.
+The seven-tap GPU blur reprojects camera rays, uses a 0.35-frame shutter and caps
+the streak at ten pixels; pauses, large cuts and long frames suppress blur.
+It does not implement translation/depth-based blur or moving-object velocity blur.
+`scripts/metro_postfx.gd` and `shaders/metro_postfx.gdshader` own these effects.
+The vignette/blur pass sits below the HUD and is bypassed during debug inspection;
+O still toggles native glow there. The maps themselves are never post-processed.
+
+A blue light ball flies through all three debug views on a twelve-second loop.
+It reuses the registered analytic sphere from the lightning event, with actual
+GPU-traced emission and **no native Godot light**. The amber inspection marker
+stays fixed within each shot, so changing radiance maps represent changing light,
+not a moving sample location. P freezes both its motion and the GPU updates.
+The albedo view intentionally does not show changing diffuse illumination, while
+its accompanying radiance maps still update. Timing remains 15 / 8 / 8 seconds.
+
+![Live blue RC emitter and the five GPU cascade maps at 2560 × 1440](docs/images/northline-cascades.png)
 
 The **72-check metro suite** covers PBR/parallax pixel differences, texture mip chains, moving proxy uploads, unchanged static BVH, lamp behavior, QHD reflections, real video playback, flashlight illumination and focus transition, visible wall and pillar graffiti, drone patrol/beacon and sign clearance, textured metal grates, train interior contents, escape signs, audio timing/pause/mute, fire animation, locked-off intro shots, walking collision, footsteps, jumping/landing, **native QHD fullscreen**, and material restoration. Performance records are in [validation](docs/validation.md).
 

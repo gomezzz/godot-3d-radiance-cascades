@@ -5,6 +5,9 @@ const LAMP_ENERGY := 2.2
 const SPECULAR_ENERGY := 0.65
 const CUTSCENE_LENGTH := 24.0
 
+@export var postfx_enabled := true
+
+var postfx := MetroPostFX.new()
 var station := MetroGeometry.new()
 var train := MetroTrain.new()
 var lamps: Array[RCPrimitive] = []
@@ -129,6 +132,8 @@ func _ready() -> void:
 	add_child(walker)
 	_setup_audio()
 	_build_hud()
+	add_child(postfx)
+	$WorldEnvironment.environment.glow_enabled = postfx_enabled
 	camera.add_child(flashlight)
 	var focus_layer := CanvasLayer.new()
 	focus_layer.layer = 2
@@ -164,6 +169,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if lightning.epilogue != null:
 		lightning.tick(delta, self)
+		postfx.tick(camera, delta, postfx_enabled, motion, true)
 		return
 	lightning.restore_lights()
 	super._process(delta)
@@ -177,7 +183,7 @@ func _process(delta: float) -> void:
 	security.paused = not motion
 	security.tick(time, delta if motion else 0.0)
 	flashlight.tick(time)
-	focus_overlay.visible = cutscene and time < 2.5
+	focus_overlay.visible = postfx_enabled and cutscene and time < 2.5
 	focus_material.set_shader_parameter("blur", 1.0 - smoothstep(0.0, 2.5, time))
 	_update_audio()
 	for index in lamps.size():
@@ -187,6 +193,7 @@ func _process(delta: float) -> void:
 		highlights[index].light_energy = SPECULAR_ENERGY * intensity * circuit
 		highlights[index].visible = circuit > 0.1
 	lightning.tick(delta, self)
+	postfx.tick(camera, delta, postfx_enabled, motion, lightning.epilogue != null)
 	status.visible = not cutscene
 	if total_frames % 15 == 0 and cascades.is_ready:
 		status.text = (
@@ -214,6 +221,10 @@ static func lamp_intensity(seconds: float, index: int, enabled: bool) -> float:
 
 # gdlint:disable=max-returns
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O:
+		postfx_enabled = not postfx_enabled
+		$WorldEnvironment.environment.glow_enabled = postfx_enabled
+		return
 	if lightning.epilogue != null:
 		if event is InputEventKey and event.pressed and not event.echo:
 			if event.keycode == KEY_P:
@@ -437,6 +448,7 @@ func _build_hud() -> void:
 		(
 			"WASD  Walk    Space  Jump    Enter  Skip / capture    C  Replay\n"
 			+ "F  Flashlight    B  Freeze GI    P  Pause    L  Flicker    M  Mute    Esc  Release"
+			+ "\nO  Post FX on / off"
 		),
 		Vector2(1260, 980),
 		15,

@@ -165,6 +165,7 @@ func _run() -> void:
 	station._unhandled_input(key)
 	event.tick(0, station)
 	assert(event.epilogue.steps[0].modulate.a == 0)
+	await _moving_debug_ball(station)
 	event.tick(1, station)
 	assert(event.epilogue.steps[0].modulate.a == 1)
 	assert(event.epilogue.steps[1].modulate.a == 0)
@@ -189,6 +190,7 @@ func _run() -> void:
 	assert(not event.finished)
 	event.tick(.1, station)
 	assert(event.epilogue.thanks.visible and not event.finished)
+	assert(not event.proxy.visible and event.proxy.radiance == Color.BLACK)
 	event.tick(1, station)
 	assert(event.epilogue.thanks.modulate.a == 1)
 	assert(event.epilogue.repo_link.text == "github.com/gomezzz/godot-3d-radiance-cascades")
@@ -207,6 +209,32 @@ func _run() -> void:
 	await create_timer(.25).timeout
 	print("LIGHTNING_TESTS_OK")
 	quit()
+
+
+func _moving_debug_ball(station: Node3D) -> void:
+	var event: MetroLightning = station.lightning
+	var epilogue: MetroDebugEpilogue = event.epilogue
+	assert(event.proxy in station.cascades.primitives, "Debug ball is registered in GPU transport")
+	assert(event.light.light_energy == 0, "Debug illumination has no native light substitute")
+	epilogue.tick(0, station)
+	for frame in 40:
+		await process_frame
+	var start := event.proxy.position
+	var first: Image = station.cascades.debug_texture.get_image()
+	epilogue.tick(4, station)
+	for frame in 40:
+		await process_frame
+	var second: Image = station.cascades.debug_texture.get_image()
+	assert(start.distance_to(event.proxy.position) > 10, "Emitter flies along the platform")
+	var change := 0.0
+	for y in range(0, first.get_height(), 2):
+		for x in range(0, first.get_width(), 2):
+			var difference := second.get_pixel(x, y) - first.get_pixel(x, y)
+			change += absf(difference.r) + absf(difference.g) + absf(difference.b)
+	assert(change > 1.0, "Real cascade radiance maps respond to the moving emitter")
+	station.postfx.tick(station.camera, .016, true, true, true)
+	assert(not station.postfx.effect.visible, "Diagnostic maps and scene remain unfiltered")
+	epilogue.tick(0, station)
 
 
 func _heat_pixels(event: MetroLightning) -> void:

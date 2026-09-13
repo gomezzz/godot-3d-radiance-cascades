@@ -92,6 +92,10 @@ func build(station: Node3D) -> void:
 	station.cutscene = false
 	station.cascades.paused = false
 	station.cascades.debug_enabled = true
+	# Reuse the registered analytic sphere: no BVH rebuild or native direct light.
+	station.lightning.proxy.visible = true
+	station.lightning.proxy.scale = Vector3.ONE * .8
+	station.lightning.light.light_energy = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 
 
@@ -102,8 +106,15 @@ func tick(age: float, station: Node3D) -> void:
 		thanks.visible = true
 		thanks.modulate.a = smoothstep(0.0, 0.8, age - SHOTS_LENGTH)
 		marker.visible = false
+		station.lightning.proxy.visible = false
+		station.lightning.proxy.radiance = Color.BLACK
 		station.cascades.paused = true
 		return
+	var phase := age * TAU / 12.0
+	station.lightning.proxy.position = Vector3(
+		-5.0 + sin(phase) * .7, 1.9 + sin(phase * 2) * .4, cos(phase) * 12.0
+	)
+	station.lightning.proxy.radiance = Color(.15, .55, 1.0) * 28.0
 	for index in steps.size():
 		steps[index].modulate.a = smoothstep(index * 2.5, index * 2.5 + .8, age)
 	var next := 0 if age < SHOT_STARTS[1] else (1 if age < SHOT_STARTS[2] else 2)
@@ -131,9 +142,9 @@ func tick(age: float, station: Node3D) -> void:
 			)
 	heading.text = "%d / 3   %s" % [stage + 1, TITLES[stage]]
 	explanation.text = (
-		"Power restored for inspection. Maps are merged intervals, not additive layers. "
+		"Blue ball: live RC emitter. Amber marker: fixed probe sample. "
 		+ (
-			"%d GPU updates / %d triangles.  P: pause  M: mute"
+			"%d GPU updates / %d triangles.  P: pause  M: mute  O: post FX"
 			% [station.cascades.frame_count, station.cascades.mesh_bvh.triangle_count]
 		)
 	)

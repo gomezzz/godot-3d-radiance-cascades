@@ -15,6 +15,24 @@ func _run() -> void:
 	await scene.cascades.initialized
 	assert(Input.mouse_mode == Input.MOUSE_MODE_HIDDEN, "Metro intro hides the pointer")
 	await _frames(90)
+	assert(scene.postfx_enabled and scene.postfx.effect.visible, "Post FX default on")
+	await _key(KEY_O)
+	assert(not scene.postfx.effect.visible, "O disables vignette and camera blur")
+	assert(not scene.get_node("WorldEnvironment").environment.glow_enabled, "O also disables glow")
+	await _key(KEY_O)
+	assert(scene.postfx.effect.visible, "O restores post FX")
+	var camera_pose: Transform3D = scene.camera.global_transform
+	scene.postfx.tick(scene.camera, .016, true, true, false)
+	scene.camera.rotate_y(.03)
+	scene.postfx.tick(scene.camera, .016, true, true, false)
+	assert(scene.postfx.material.get_shader_parameter("shutter") > 0, "Camera turn enables blur")
+	scene.postfx.tick(scene.camera, .016, true, false, false)
+	assert(scene.postfx.material.get_shader_parameter("shutter") == 0, "Pause disables blur")
+	scene.camera.position += Vector3(5, 0, 0)
+	scene.postfx.tick(scene.camera, .016, true, true, false)
+	assert(scene.postfx.material.get_shader_parameter("shutter") == 0, "Cuts reset blur")
+	scene.camera.global_transform = camera_pose
+	scene.postfx.initialized = false
 	assert(not scene.hud.visible and scene.shortcut_hint.visible, "Only shortcut hint on entry")
 	await _key(KEY_F1)
 	assert(scene.hud.visible, "F1 reveals metro title and shortcuts")
